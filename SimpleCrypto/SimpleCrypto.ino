@@ -43,14 +43,14 @@ void renderWelcomeMsg()
   display.drawString(64, 0, F("HODL Display"));
   display.setFont(ArialMT_Plain_10);
   display.drawString(64, 18, F("By Brian Lough"));
-  display.drawString(64, 36, F("/ updated by piotrwawrzyn"));
+  display.drawString(64, 30, F("updated by Ball56"));
   display.display();
 }
 
 void connect()
 {
   WiFi.begin(ssid, password);
-  String dots[3] = {".", "..", "..."};
+  String dots[4] = {"...", "o..", ".o.","..o"};
   int numberOfDots = 1;
 
   while (WiFi.status() != WL_CONNECTED)
@@ -61,7 +61,7 @@ void connect()
     display.drawString(64, 18, "Connecting to WiFi " + dots[numberOfDots]);
     display.display();
 
-    if (numberOfDots == 3)
+    if (numberOfDots == 4)
     {
       numberOfDots = 0;
     }
@@ -73,7 +73,7 @@ void connect()
     delay(300);
   }
 
-  renderSimpleText("Connected.");
+  renderSimpleText("Connected!");
 }
 
 String createApiUrl(String vsCurrency)
@@ -85,7 +85,7 @@ String createApiUrl(String vsCurrency)
     cryptosString += cryptos[i].apiName + ",";
   }
 
-  return "https://api.coingecko.com/api/v3/coins/markets?vs_currency=" + vsCurrency + "&ids=" + cryptosString + "&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h%2C7d";
+  return "https://api.coingecko.com/api/v3/coins/markets?vs_currency=" + vsCurrency + "&ids=" + cryptosString + "&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h%2C24h%2C7d";
 }
 
 int getCryptoIndexById(String id)
@@ -122,6 +122,7 @@ void downloadData(String vsCurrency)
     filter[i]["id"] = true;
     filter[i]["symbol"] = true;
     filter[i]["current_price"] = true;
+    filter[i]["price_change_percentage_1h_in_currency"] = true;
     filter[i]["price_change_percentage_24h_in_currency"] = true;
     filter[i]["price_change_percentage_7d_in_currency"] = true;
   }
@@ -145,11 +146,13 @@ void downloadData(String vsCurrency)
     String symbol = json["symbol"];
     symbol.toUpperCase();
     double currentPrice = json["current_price"];
+    double hourChange = json["price_change_percentage_1h_in_currency"];
     double dayChange = json["price_change_percentage_24h_in_currency"];
     double weekChange = json["price_change_percentage_7d_in_currency"];
 
     cryptos[cryptoIndex].symbol = symbol;
     cryptos[cryptoIndex].priceUsd = currentPrice;
+    cryptos[cryptoIndex].hourChange = hourChange;
     cryptos[cryptoIndex].dayChange = dayChange;
     cryptos[cryptoIndex].weekChange = weekChange;
   }
@@ -171,9 +174,17 @@ String formatCurrency(float price)
   {
     digitsAfterDecimal = 2;
   }
-  else if (price < 0.001)
+  else if (price >= 0.01)
+  {
+    digitsAfterDecimal = 3;
+  }
+  else if (price >= 0.001)
   {
     digitsAfterDecimal = 4;
+  }
+  else if (price < 0.0001)
+  {
+    digitsAfterDecimal = 7;
   }
 
   return String(price, digitsAfterDecimal);
@@ -217,15 +228,42 @@ void renderCrypto(Crypto crypto)
     display.setFont(ArialMT_Plain_10);
     display.drawString(90, 50, crypto.symbol);
   }
-
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(0, 10, "$");
-  display.setFont(ArialMT_Plain_24);
-  display.drawString(10, 6, formatCurrency(crypto.priceUsd));
-  display.setFont(ArialMT_Plain_10);
-  display.drawString(0, 42, "24h:  " + formatPercentageChange(crypto.dayChange));
-  display.drawString(0, 54, "7d:  " + formatPercentageChange(crypto.weekChange));
-  display.display();
+  if (crypto.priceUsd <= 0.0001)
+  {
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(0, 5, "$");
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(10, 5, formatCurrency(crypto.priceUsd));
+    display.setFont(ArialMT_Plain_10);
+    display.drawString(0, 32, "1h  :  " + formatPercentageChange(crypto.hourChange));
+    display.drawString(0, 43, "24h:  " + formatPercentageChange(crypto.dayChange));
+    display.drawString(0, 54, "7d  :  " + formatPercentageChange(crypto.weekChange));
+    display.display();
+  }
+  else if (crypto.priceUsd > 99999)
+  {
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(0, 5, "$");
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(10, 8, formatCurrency(crypto.priceUsd));
+    display.setFont(ArialMT_Plain_10);
+    display.drawString(0, 32, "1h  :  " + formatPercentageChange(crypto.hourChange));
+    display.drawString(0, 43, "24h:  " + formatPercentageChange(crypto.dayChange));
+    display.drawString(0, 54, "7d  :  " + formatPercentageChange(crypto.weekChange));
+    display.display();
+  }
+  else
+  {
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(0, 5, "$");
+    display.setFont(ArialMT_Plain_24);
+    display.drawString(10, 1, formatCurrency(crypto.priceUsd));
+    display.setFont(ArialMT_Plain_10);
+    display.drawString(0, 32, "1h  :  " + formatPercentageChange(crypto.hourChange));
+    display.drawString(0, 43, "24h:  " + formatPercentageChange(crypto.dayChange));
+    display.drawString(0, 54, "7d  :  " + formatPercentageChange(crypto.weekChange));
+    display.display();
+  }
 }
 
 void setup()
